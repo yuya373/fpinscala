@@ -21,17 +21,35 @@ object Monoid {
     val zero = Nil
   }
 
-  val intAddition: Monoid[Int] = sys.error("todo")
+  val intAddition: Monoid[Int] = new Monoid[Int] {
+    def op(a: Int, b: Int) = a + b
+    val zero = 0
+  }
 
-  val intMultiplication: Monoid[Int] = sys.error("todo")
+  val intMultiplication: Monoid[Int] = new Monoid[Int] {
+    def op(a: Int, b: Int) = a * b
+    val zero = 1
+  }
 
-  val booleanOr: Monoid[Boolean] = sys.error("todo")
+  val booleanOr: Monoid[Boolean] = new Monoid[Boolean] {
+    def op(a: Boolean, b: Boolean) = a || b
+    val zero = false
+  }
 
-  val booleanAnd: Monoid[Boolean] = sys.error("todo")
+  val booleanAnd: Monoid[Boolean] = new Monoid[Boolean] {
+    def op(a: Boolean, b: Boolean) = a && b
+    val zero = true
+  }
 
-  def optionMonoid[A]: Monoid[Option[A]] = sys.error("todo")
+  def optionMonoid[A]: Monoid[Option[A]] = new Monoid[Option[A]] {
+    def op(a: Option[A], b: Option[B]) = a orElse b
+    val zero = None
+  }
 
-  def endoMonoid[A]: Monoid[A => A] = sys.error("todo")
+  def endoMonoid[A]: Monoid[A => A] = new Monoid[A => A] {
+    def op(a: A => A, b: A => A) = a compose b
+    val zero = (a: A) => a
+  }
 
   // TODO: Placeholder for `Prop`. Remove once you have implemented the `Prop`
   // data type from Part 2.
@@ -47,10 +65,10 @@ object Monoid {
   def trimMonoid(s: String): Monoid[String] = sys.error("todo")
 
   def concatenate[A](as: List[A], m: Monoid[A]): A =
-    sys.error("todo")
+    as.foldLeft(m.zero)(m.op)
 
   def foldMap[A, B](as: List[A], m: Monoid[B])(f: A => B): B =
-    sys.error("todo")
+    as.map(f).foldLeft(m.zero)(m.op)
 
   def foldRight[A, B](as: List[A])(z: B)(f: (A, B) => B): B =
     sys.error("todo")
@@ -58,25 +76,48 @@ object Monoid {
   def foldLeft[A, B](as: List[A])(z: B)(f: (B, A) => B): B =
     sys.error("todo")
 
-  def foldMapV[A, B](as: IndexedSeq[A], m: Monoid[B])(f: A => B): B =
-    sys.error("todo")
+  def foldMapV[A, B](as: IndexedSeq[A], m: Monoid[B])(f: A => B): B = {
+    val (l, r) = as.splitAt(as.length / 2)
+    concatenate(List(foldMap(l.toList, m)(f), foldMap(r.toList, m)(f)), m)
+  }
 
   def ordered(ints: IndexedSeq[Int]): Boolean =
+    sys.error("todo")
+
+  def par[A](m: Monoid[A]): Monoid[Par[A]] =
+    sys.error("todo")
+
+  def parFoldMap[A,B](v: IndexedSeq[A], m: Monoid[B])(f: A => B): Par[B] =
     sys.error("todo")
 
   sealed trait WC
   case class Stub(chars: String) extends WC
   case class Part(lStub: String, words: Int, rStub: String) extends WC
 
-  def par[A](m: Monoid[A]): Monoid[Par[A]] = 
-    sys.error("todo")
+  val wcMonoid: Monoid[WC] = new Monoid[WC] {
+    val zero = Stub("")
+    def op(a: WC, b: WC) = (a, b) match {
+      case (Stub(c), Stub(d)) => Stub(c + d)
+      case (Stub(c), Part(l, w, r)) => Part(c + l, w, r)
+      case (Part(l, w, r), Stub(d)) => Part(l, w, r + d)
+      case (Part(l1, w1, r1), Part(l2, w2, r2)) =>
+        Part(l1, w1 + (if ((r1 + l2).isEmpty) 0 else 1) + w2, r2)
+    }
+  }
 
-  def parFoldMap[A,B](v: IndexedSeq[A], m: Monoid[B])(f: A => B): Par[B] = 
-    sys.error("todo") 
-
-  val wcMonoid: Monoid[WC] = sys.error("todo")
-
-  def count(s: String): Int = sys.error("todo")
+  def count(s: String): Int = {
+    def wc(c: Char) = {
+      if (c.isWhitespace)
+        Part("", 0, "")
+      else
+        Stub(c.toString)
+    }
+    def unstub(s: String) = s.length min 1
+    foldMapV(s.toIndexedSeq, wcMonoid)(wc) match {
+      case Stub(s) => unstub(s)
+      case Part(l, w, r) => unstub(l) + w + unstub(r)
+    }
+  }
 
   def productMonoid[A,B](A: Monoid[A], B: Monoid[B]): Monoid[(A, B)] =
     sys.error("todo")
